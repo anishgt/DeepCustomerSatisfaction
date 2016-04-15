@@ -25,6 +25,7 @@ import math
 import random
 import pandas as pd
 import matplotlib.pyplot as plt
+import sys
 from sklearn.cross_validation import train_test_split
 
 def create(x, layer_sizes):
@@ -76,6 +77,16 @@ def create(x, layer_sizes):
 
 def error_thresh(x):
 	return x>=29
+	#return x>=0.45
+
+def log_var(x):
+	if x[7] == 0:
+		#rep = 0.00000001
+		rep=x[7]
+	else:
+		rep = x[7]
+		
+	return (x[0], x[1], x[2], x[3], x[4], x[5], x[6], rep, x[8], x[9])
 
 def deep_test(data):
 	sess = tf.Session()
@@ -94,7 +105,7 @@ def deep_test(data):
 	
 	start_dim = data_filtered.shape[1]
 	x = tf.placeholder("float", [None, start_dim])
-	autoencoder = create(x, [9, 7, 5, 3])
+	autoencoder = create(x, [9, 7, 5, 3, 2])
 	# lyr = range(10,350)
 	# lyr.reverse()
 	# autoencoder = create(x,lyr)
@@ -134,6 +145,9 @@ if __name__ == '__main__':
 	train = pd.read_csv("./santander/train.csv")
 	features = ['var15', 'ind_var5', 'ind_var8_0', 'ind_var30', 'num_var5', 'num_var30', 'num_var42', 'var36', 'num_meses_var5_ult3']
 	data = train[features+['TARGET']]
+	#cols_to_norm = ['var15', 'num_var5', 'num_var30', 'num_var42', 'var36', 'num_meses_var5_ult3']
+	#data[cols_to_norm] = data[cols_to_norm].apply(lambda x: (x - x.mean()) / (x.max() - x.min()))
+	#data_trans = data.apply(log_var, axis=1)
 	# data['var38mc'] = np.isclose(data.var38, 117310.979016)
 	# data['logvar38'] = data.loc[~data['var38mc'], 'var38'].map(np.log)
 	# data.loc[data['var38mc'], 'logvar38'] = 0
