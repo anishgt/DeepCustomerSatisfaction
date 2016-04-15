@@ -95,25 +95,25 @@ def deep_test(data):
 	train_step = tf.train.GradientDescentOptimizer(0.0005).minimize(autoencoder['cost'])
 
 
-	for i in range(100):	
+	for i in range(6000):	
 		data_filtered.reindex(np.random.permutation(data_filtered.index))
-		batch = data_filtered.iloc[:,:].values[:50]
+		batch = data_filtered.iloc[:,:].values[:100]
 		sess.run(train_step, feed_dict={x: batch})
-		print i, " cost", sess.run(autoencoder['cost'], feed_dict={x: batch})
+		#print i, " cost", sess.run(autoencoder['cost'], feed_dict={x: batch})
 
 	#print i, " test cost_pos", sess.run(autoencoder['cost'], feed_dict={x:test_pos.iloc[:,:9].values})
 	#print i, " test cost_neg", sess.run(autoencoder['cost'], feed_dict={x:test_neg.iloc[:,:9].values})
 	test_pos_r = [sess.run(autoencoder['cost'], feed_dict={x: np.reshape(np.array(test_pos.ix[i,0:9]),(1,9))}) for i in test_pos.index]
 	test_neg_r = [sess.run(autoencoder['cost'], feed_dict={x: np.reshape(np.array(test_neg.ix[i,0:9]),(1,9))}) for i in test_neg.index]
-	plt.plot(test_pos_r,color="red")
-	plt.plot(test_neg_r,color="blue")
+	plt.plot(test_pos_r,'ro',color='b')
+	plt.plot(test_neg_r,'ro',color='r')
 	plt.show()
 	# print "testing begins"
 	# for i in test.index:	
 	# 	print test.loc[i,'TARGET'],sess.run(autoencoder['cost'], feed_dict={x: np.reshape(np.array(test.ix[i,0:9]),(1,9))})
 
 if __name__ == '__main__':
-	train = pd.read_csv("./data/train.csv")
+	train = pd.read_csv("./santander/train.csv")
 	features = ['var15', 'ind_var5', 'ind_var8_0', 'ind_var30', 'num_var5', 'num_var30', 'num_var42', 'var36', 'num_meses_var5_ult3']
 	data = train[features+['TARGET']]
 	# data['var38mc'] = np.isclose(data.var38, 117310.979016)
