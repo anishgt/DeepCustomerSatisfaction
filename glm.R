@@ -11,16 +11,16 @@ meanValues <- 0
 
 #length(data[372])
 
-data[,1]
+#data[,1]
 
 for(i in 1:370)
 {
   #j <- i+1
-    x <- data[,j]
+    x <- data[,i]
     meanValues[i] <- mean(x, na.rm = TRUE)
-    for (k in which(is.na(data[,j])))
+    for (k in which(is.na(data[,i])))
     {
-      data[k, j] <- meanValues[i]
+      data[k, i] <- meanValues[i]
     }
 }
 
