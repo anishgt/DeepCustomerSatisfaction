@@ -78,15 +78,21 @@ test <- test[, feature.names]
 st.pca <- prcomp(train, center = TRUE, scale. = TRUE)
 st.pca.pred <- predict(st.pca, test)
 
-train <- as.data.frame(st.pca$x[,1:100])
-test <- as.data.frame(st.pca.pred[,1:100])
+train <- as.data.frame(st.pca$x[,1:50])
+test <- as.data.frame(st.pca.pred[,1:50])
 #
 
 train$TARGET <- train.y
 dim(train)
-glmModel <- glm(TARGET ~ .,family=binomial(link='logit'),data=train)
+
+subtrain0=train[sample(which(train$TARGET == 0),1000),]
+subtrain1=train[sample(which(train$TARGET == 1),1000),]
+subtrain=rbind(subtrain0,subtrain1)
+
+glmModel <- glm(TARGET ~ .,family=binomial(link='logit'),data=subtrain)
 
 summary(glmModel)
+
 
 pred <- predict(glmModel,newdata=test,type='response')
 pred <- ifelse(pred > 0.5,1,0)
