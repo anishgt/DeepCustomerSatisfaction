@@ -80,13 +80,14 @@ data_list=[]
 d=[]
 training_data=[]
 validate_data=[]
-layer_sizes=[300,200,100,10,2]
+layer_sizes=[369,2]
 next_layer_input=x
 for dim in layer_sizes:
 	input_dim = int(next_layer_input.get_shape()[1])
 
 	# Initialize W using random values in interval [-1/sqrt(n) , 1/sqrt(n)]
-	W = tf.Variable(tf.random_uniform([input_dim, dim],-1.0 / math.sqrt(input_dim), 1.0 / math.sqrt(input_dim)))
+	#W = tf.Variable(tf.random_uniform([input_dim, dim],-1.0 / math.sqrt(input_dim), 1.0 / math.sqrt(input_dim)))
+	W = tf.Variable(tf.random_normal([input_dim, dim],mean=0.0, stddev=1.0, dtype=tf.float32))
 	#W = tf.Variable(tf.zeros([input_dim,dim]))
 	# Initialize b to zero
 	b = tf.Variable(tf.zeros([dim]))
@@ -118,7 +119,7 @@ cross_entropy = -tf.reduce_sum(y_ * tf.log(y))
 sse = tf.reduce_sum( (y_ - y)*(y_ - y))
 mse = tf.reduce_mean( tf.pow((y_ - y),2))
 
-train_step = tf.train.GradientDescentOptimizer(0.00000000000000000000001).minimize(mse)
+train_step = tf.train.GradientDescentOptimizer(0.001).minimize(cross_entropy)
 init = tf.initialize_all_variables()
 
 sess = tf.Session()
@@ -130,7 +131,7 @@ accuracy = tf.reduce_mean(tf.cast(correct_predition, "float"))
 index_0_list = range(len(X_train_0_list))
 index_1_list = range(len(X_train_1_list))
 
-for i in range(50):
+for i in range(500):
 	#1000000 3489.25
 	#batch_xs, batch_ys = shuffle(X_train_list, Y_train_list, random_state=i)
 	#for (x,y) in zip(batch_xs, batch_ys):
@@ -191,5 +192,15 @@ for innerlist in data_list:
 	X_test_list.append(innerlist[:369])
 
 print "y"
-file = open("submission", 'w')
-print >>file,sess.run(prediction, feed_dict={x: X_test_list})
+
+result = pd.DataFrame()
+result['ID']=test['ID']
+
+#test_kaggle = test[features]
+#test_kaggle_r = [sess.run(prediction, feed_dict={x: [X_test_list[i]]}) for i in range(len(X_test_list))]
+test_kaggle_r = [sess.run(prediction, feed_dict={x: X_test_list})]
+
+#test_labels = [1 if x>29 else 0 for x in test_kaggle_r]
+#print 'sum of test labels',sum(test_labels)
+result['TARGET']=test_kaggle_r
+result.to_csv('submission.csv')
