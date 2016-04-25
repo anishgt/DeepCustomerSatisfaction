@@ -28,6 +28,8 @@ import matplotlib.pyplot as plt
 import sys
 from sklearn.cross_validation import train_test_split
 
+#best 9 features as reported here:
+	#https://www.kaggle.com/cast42/santander-customer-satisfaction/exploring-features
 
 features = ['var15', 'ind_var5', 'ind_var8_0', 'ind_var30', 'num_var5', 'num_var30', 'num_var42', 'var36', 'num_meses_var5_ult3']
 def create(x, layer_sizes):
@@ -77,9 +79,6 @@ def create(x, layer_sizes):
 		'cost' : tf.sqrt(tf.reduce_mean(tf.square(x-reconstructed_x)))
 	}
 
-def error_thresh(x):
-	return x>=29
-	#return x>=0.45
 
 def log_var(x):
 	if x[7] == 0:
@@ -93,17 +92,19 @@ def log_var(x):
 def deep_test(data):
 	sess = tf.Session()
 	random.seed(1)
-	train, test = train_test_split(data,test_size=0.1)
-	print "test",test.shape
-	print "train",train.shape
-	data_filtered = train[train['TARGET']==0].ix[:,:9]
-	test_pos = test[test['TARGET']==0]
-	test_neg = test[test['TARGET']==1]
+	train, val = train_test_split(data,test_size=0.1)
+	fsize = len(features)
+
+	data_filtered = train[train['TARGET']==0].ix[:,:fsize]
+	val_pos = val[val['TARGET']==0]
+	val_neg = val[val['TARGET']==1]
+
+	print "shape of training data",data_filtered.shape
+	print "shape of pos validation data", val_pos.shape
+	print "shape of negative validation data", val_neg.shape
 	print "no of filtered rows",data_filtered.shape
-	total_pos = test_pos.shape[0]
-	total_neg = test_neg.shape[0]
-	print "no of positive rows",total_pos
-	print "no of negative rows",total_neg	
+	total_pos = val_pos.shape[0]
+	total_neg = val_neg.shape[0]	
 	
 	start_dim = data_filtered.shape[1]
 	x = tf.placeholder("float", [None, start_dim])
@@ -115,40 +116,60 @@ def deep_test(data):
 	sess.run(init)
 	train_step = tf.train.GradientDescentOptimizer(0.00000001).minimize(autoencoder['cost'])
 
-
-	for i in range(65000):	
+	pos_cost = []
+	for i in range(700):	
 		data_filtered.reindex(np.random.permutation(data_filtered.index))
 		batch = data_filtered.iloc[:,:].values[:100]
 		sess.run(train_step, feed_dict={x: batch})
-		#print i, " cost", sess.run(autoencoder['cost'], feed_dict={x: batch})
+		pos_cost.append(sess.run(autoencoder['cost'], feed_dict={x: batch}))
 
 	#print i, " test cost_pos", sess.run(autoencoder['cost'], feed_dict={x:test_pos.iloc[:,:9].values})
 	#print i, " test cost_neg", sess.run(autoencoder['cost'], feed_dict={x:test_neg.iloc[:,:9].values})
-	test_pos_r = [sess.run(autoencoder['cost'], feed_dict={x: np.reshape(np.array(test_pos.ix[i,0:9]),(1,9))}) for i in test_pos.index]
-	#test_pos_r = [sess.run(autoencoder['cost'], feed_dict={x: np.reshape(np.array(test_pos.ix[i,:]),(1,371))}) for i in test_pos.index]
-	test_neg_r = [sess.run(autoencoder['cost'], feed_dict={x: np.reshape(np.array(test_neg.ix[i,0:9]),(1,9))}) for i in test_neg.index]
+	val_pos_error = [sess.run(autoencoder['cost'], feed_dict={x: np.reshape(np.array(val_pos.ix[i,0:9]),(1,9))}) for i in val_pos.index]
+	val_neg_error = [sess.run(autoencoder['cost'], feed_dict={x: np.reshape(np.array(val_neg.ix[i,0:9]),(1,9))}) for i in val_neg.index]
 	
+
 	test_kaggle=pd.read_csv('./santander/test.csv')
 	result = pd.DataFrame()
 	result['ID']=test_kaggle['ID']
 
 	test_kaggle = test_kaggle[features]
-	test_kaggle_r = [sess.run(autoencoder['cost'], feed_dict={x: np.reshape(np.array(test_kaggle.ix[i,0:9]),(1,9))}) for i in test_kaggle.index]
+	test_kaggle_error = [sess.run(autoencoder['cost'], feed_dict={x: np.reshape(np.array(test_kaggle.ix[i,0:9]),(1,9))}) for i in test_kaggle.index]
 	
-	test_labels = [1 if x>29 else 0 for x in test_kaggle_r]
-	print 'sum of test labels',sum(test_labels)
+	test_labels = [1 if x>np.median(pos_cost) else 0 for x in test_kaggle_error]
+	#print 'sum of test labels',sum(test_labels)
 	result['TARGET']=test_labels
 	result.to_csv('submission.csv')
-	pos_above_thresh= sum(1 for x in test_pos_r if error_thresh(x))
-	neg_above_thresh= sum(1 for x in test_neg_r if error_thresh(x))
+	pos_above_thresh= sum(1 for x in val_pos_error if x<np.median(pos_cost))
+	neg_above_thresh= sum(1 for x in val_neg_error if x<np.median(pos_cost))
 	
 	print "% positives above threshold", (float(pos_above_thresh)/total_pos)*100 , "%"
 	print "% negatives above threshold", (float(neg_above_thresh)/total_neg)*100 , "%"
 	
+	val_pos_label = [1 if x>np.median(pos_cost) else 0 for x in val_pos_error]
+	val_neg_label = [1 if x>np.median(pos_cost) else 0 for x in val_neg_error]
+	
+	val_pos_labels_true = val_pos['TARGET'].tolist()
+	val_neg_labels_true = val_neg['TARGET'].tolist()
+
+	no0wrong = sum([1 if val_pos_label[i]!=val_pos_labels_true[i] else 0 for i in range(len(val_pos_label))])
+	no1wrong = sum([1 if val_neg_label[i]!=val_neg_labels_true[i] else 0 for i in range(len(val_neg_label))])
+
+	print "no of 0s wrong = ",float(no0wrong),'/',len(val_pos_error)
+	print "no of 1s wrong = ",float(no1wrong),'/',len(val_neg_error)
+	
+	tp = len(val_pos_error)-no0wrong
+	tn = len(val_neg_error)-no1wrong
+	fp = no0wrong
+	fn = no1wrong
+	precision = float(tp)/(tp+fp)
+	recall = float(tp)/(tp+fn)
+	fmeasure = (2*precision*recall)/(precision+recall)
+	print "fmeasure on validation data = ",fmeasure
 	
 	
-	plt.plot(test_pos_r,'ro',color='b')
-	plt.plot(test_neg_r,'ro',color='r')
+	plt.plot(val_pos_error,'ro',color='b')
+	plt.plot(val_neg_error,'ro',color='r')
 	plt.show()
 	# print "testing begins"
 	# for i in test.index:	
